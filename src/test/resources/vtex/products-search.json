@@ -1,0 +1,50 @@
+[
+  {
+    "productId": "1",
+    "productName": "Batom Cremoso Mary Kay",
+    "brand": "Mary Kay",
+    "link": "https://loja.marykay.com.br/batom-cremoso-mary-kay/p",
+    "categories": ["/Maquiagem/Lábios/", "/Maquiagem/", "/Maquiagem/Lábios/"],
+    "description": "<strong>Batom Cremoso</strong><br/>Cor intensa e <em>hidratação</em>.",
+    "items": [
+      {
+        "itemId": "10",
+        "sellers": [
+          {"sellerId": "1", "commertialOffer": {"Price": 49.9, "ListPrice": 59.9, "AvailableQuantity": 120}}
+        ]
+      }
+    ]
+  },
+  {
+    "productId": "2",
+    "productName": "Produto Teste",
+    "brand": "Mary Kay",
+    "link": "https://loja.marykay.com.br/produto-teste/p",
+    "categories": ["/Testes/"],
+    "description": "",
+    "items": [
+      {
+        "itemId": "20",
+        "sellers": [
+          {"sellerId": "1", "commertialOffer": {"Price": 0, "ListPrice": 0, "AvailableQuantity": 0}}
+        ]
+      }
+    ]
+  },
+  {
+    "productId": "3",
+    "productName": "Caixa Presente Quadrada Mary Kay",
+    "brand": "Mary Kay",
+    "link": "https://loja.marykay.com.br/caixa-presente-quadrada-mary-kay/p",
+    "categories": ["/Presentes/Acessórios/", "/Presentes/"],
+    "description": null,
+    "items": [
+      {
+        "itemId": "30",
+        "sellers": [
+          {"sellerId": "1", "commertialOffer": {"Price": 11.9, "ListPrice": 11.9, "AvailableQuantity": 99999}}
+        ]
+      }
+    ]
+  }
+]

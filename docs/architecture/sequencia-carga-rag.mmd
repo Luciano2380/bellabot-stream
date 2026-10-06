@@ -1,0 +1,68 @@
+sequenceDiagram
+    autonumber
+    participant SB as Spring Boot
+    participant INIT as OllamaEmbeddingInitializer
+    participant ADP as OllamaEmbeddingAdapter
+    participant VTX as VtexCatalogClient
+    participant CRW as WebCrawler
+    participant EXT as VTEX / Sites / PDF
+    participant OL as Ollama nomic-embed-text
+    participant CH as ChromaDB
+
+    SB->>INIT: run() como CommandLineRunner
+    Note over SB,INIT: o bot já recebe mensagens, a carga leva cerca de 2 min e divide a GPU
+
+    rect rgb(240, 248, 255)
+    Note over INIT,CH: Etapa 1, catálogo de produtos (runStep isolado)
+    INIT->>ADP: ingestProductCatalog(storeUrls)
+    loop cada loja
+        ADP->>VTX: fetch(storeUrl)
+        loop páginas de 50 até 2500 itens
+            VTX->>EXT: GET /api/catalog_system/pub/products/search
+            EXT-->>VTX: produtos JSON
+        end
+        VTX-->>ADP: um Document por produto com estoque
+        alt catálogo vazio
+            ADP->>ADP: WARN e mantém produtos já gravados
+        else catálogo lido
+            ADP->>CH: removeAll(type=product, store=host)
+            ADP->>ADP: processAndStore(documents)
+        end
+    end
+    end
+
+    rect rgb(245, 255, 245)
+    Note over INIT,CH: Etapa 2, sites (runStep isolado)
+    INIT->>ADP: ingestWebsites(urls)
+    ADP->>CRW: crawl(url)
+    CRW->>EXT: GET robots.txt
+    loop BFS no mesmo host e caminho, até max-depth e max-pages, com request-delay
+        CRW->>EXT: GET página (HTML estático)
+        opt página sem texto
+            CRW->>EXT: renderiza com Playwright Chromium
+        end
+        CRW-->>ADP: CrawledPage
+        ADP->>CH: removeAll(source=url)
+        ADP->>ADP: processAndStore(página)
+    end
+    end
+
+    rect rgb(255, 250, 240)
+    Note over INIT,CH: Etapa 3, PDF local (runStep isolado)
+    INIT->>ADP: ingestLocalPdf(data/rag/outubro2026.pdf)
+    alt PDF não encontrado
+        ADP->>ADP: ERROR no log
+    else PDF encontrado
+        ADP->>EXT: lê o arquivo e extrai com Tika
+        ADP->>CH: removeAll(source=path)
+        ADP->>ADP: processAndStore(documento)
+    end
+    end
+
+    Note over ADP,CH: processAndStore divide com recursive(600, 60)
+    loop lotes de 32 segmentos
+        ADP->>OL: embedAll(lote)
+        OL-->>ADP: embeddings
+        ADP->>CH: addAll(embeddings, segmentos)
+    end
+    Note over INIT: falha numa etapa gera log e não interrompe as próximas

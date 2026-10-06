@@ -1,0 +1,211 @@
+<mxfile host="drawio">
+<diagram name="Arquitetura" id="arquitetura">
+<mxGraphModel dx="1600" dy="1000" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="2400" pageHeight="1600" math="0" shadow="0">
+<root>
+<mxCell id="0"/>
+<mxCell id="1" parent="0"/>
+
+<mxCell id="title" value="&lt;b&gt;bellabot-stream — Arquitetura (hexagonal / ports &amp;amp; adapters)&lt;/b&gt;&lt;br&gt;Bot do Telegram consultora de maquiagem · IA local (Ollama) · RAG (ChromaDB) · eventos Kafka/Avro · ADRs 0001–0004" style="text;html=1;align=left;verticalAlign=middle;fontSize=16;" vertex="1" parent="1">
+<mxGeometry x="220" y="-50" width="1200" height="50" as="geometry"/></mxCell>
+
+<!-- Externos à esquerda -->
+<mxCell id="cliente" value="&lt;b&gt;Cliente&lt;/b&gt;&lt;br&gt;(app Telegram)&lt;br&gt;texto · /start · foto" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#f8cecc;strokeColor=#b85450;fontSize=11;" vertex="1" parent="1">
+<mxGeometry x="20" y="90" width="170" height="70" as="geometry"/></mxCell>
+<mxCell id="tgApi" value="&lt;b&gt;Telegram Bot API&lt;/b&gt;&lt;br&gt;api.telegram.org" style="ellipse;shape=cloud;whiteSpace=wrap;html=1;fillColor=#f8cecc;strokeColor=#b85450;fontSize=11;" vertex="1" parent="1">
+<mxGeometry x="10" y="280" width="190" height="110" as="geometry"/></mxCell>
+
+<!-- Aplicação -->
+<mxCell id="A" value="bellabot-stream — Spring Boot 3.5 · Java 21 · virtual threads · pacote com.lpopas.bellabotstream" style="swimlane;whiteSpace=wrap;html=1;startSize=30;fillColor=#333333;fontColor=#ffffff;strokeColor=#333333;swimlaneFillColor=#fcfcfc;fontStyle=1;" vertex="1" parent="1">
+<mxGeometry x="220" y="20" width="1500" height="1230" as="geometry"/></mxCell>
+
+<!-- Adapter IN -->
+<mxCell id="inB" value="infrastructure / adapter / in" style="swimlane;whiteSpace=wrap;html=1;startSize=26;fillColor=#d5e8d4;strokeColor=#82b366;swimlaneFillColor=#f3faf2;" vertex="1" parent="A">
+<mxGeometry x="20" y="50" width="300" height="640" as="geometry"/></mxCell>
+<mxCell id="tgBot" value="&lt;b&gt;BellaBotTelegramBot&lt;/b&gt;&lt;br&gt;&lt;i&gt;SpringLongPollingBot + LongPollingUpdateConsumer&lt;/i&gt;&lt;br&gt;PhotoSize → Photo · MDC [updateId,chatId]&lt;br&gt;1 virtual thread por update" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#d5e8d4;strokeColor=#82b366;fontSize=11;" vertex="1" parent="inB">
+<mxGeometry x="20" y="50" width="260" height="90" as="geometry"/></mxCell>
+<mxCell id="embInit" value="&lt;b&gt;OllamaEmbeddingInitializer&lt;/b&gt;&lt;br&gt;&lt;i&gt;CommandLineRunner&lt;/i&gt;&lt;br&gt;catálogo → sites → PDF (etapas isoladas)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#d5e8d4;strokeColor=#82b366;fontSize=11;" vertex="1" parent="inB">
+<mxGeometry x="20" y="420" width="260" height="70" as="geometry"/></mxCell>
+<mxCell id="kafkaIn" value="adapter/in/kafka&lt;br&gt;(consumers futuros — vazio)" style="rounded=1;whiteSpace=wrap;html=1;dashed=1;fillColor=#ffffff;strokeColor=#82b366;fontSize=11;fontColor=#666666;" vertex="1" parent="inB">
+<mxGeometry x="20" y="550" width="260" height="50" as="geometry"/></mxCell>
+
+<!-- Application -->
+<mxCell id="appB" value="application" style="swimlane;whiteSpace=wrap;html=1;startSize=26;fillColor=#dae8fc;strokeColor=#6c8ebf;swimlaneFillColor=#f2f7fd;" vertex="1" parent="A">
+<mxGeometry x="360" y="50" width="400" height="640" as="geometry"/></mxCell>
+<mxCell id="ucIn" value="«port/in» &lt;b&gt;ReplyToMessageUseCase&lt;/b&gt;" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#dae8fc;strokeColor=#6c8ebf;fontSize=11;" vertex="1" parent="appB">
+<mxGeometry x="20" y="50" width="360" height="45" as="geometry"/></mxCell>
+<mxCell id="ucSvc" value="«usecase» &lt;b&gt;ReplyToMessageService&lt;/b&gt;&lt;br&gt;replyToText (/start fixo · IA) · replyToPhoto&lt;br&gt;try (typing = startTyping) { download · IA }&lt;br&gt;publish() captura exceções" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#dae8fc;strokeColor=#6c8ebf;fontSize=11;" vertex="1" parent="appB">
+<mxGeometry x="20" y="130" width="360" height="80" as="geometry"/></mxCell>
+<mxCell id="pAi" value="«port/out» &lt;b&gt;GenerateAiReplyPort&lt;/b&gt;&lt;br&gt;generate · analyzePhoto · generateConsultation · generateInvalidPhotoReply" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#dae8fc;strokeColor=#6c8ebf;fontSize=11;" vertex="1" parent="appB">
+<mxGeometry x="20" y="250" width="360" height="60" as="geometry"/></mxCell>
+<mxCell id="pSend" value="«port/out» &lt;b&gt;SendMessagePort&lt;/b&gt;&lt;br&gt;send · downloadFile → FileContent · startTyping → TypingIndicator" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#dae8fc;strokeColor=#6c8ebf;fontSize=11;" vertex="1" parent="appB">
+<mxGeometry x="20" y="330" width="360" height="60" as="geometry"/></mxCell>
+<mxCell id="pPub" value="«port/out» &lt;b&gt;PublishEventPort&lt;/b&gt;" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#dae8fc;strokeColor=#6c8ebf;fontSize=11;" vertex="1" parent="appB">
+<mxGeometry x="20" y="410" width="360" height="45" as="geometry"/></mxCell>
+<mxCell id="pEmb" value="«port/out» &lt;b&gt;GenerateEmbeddingPort&lt;/b&gt;" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#dae8fc;strokeColor=#6c8ebf;fontSize=11;" vertex="1" parent="appB">
+<mxGeometry x="20" y="485" width="360" height="45" as="geometry"/></mxCell>
+<mxCell id="exc" value="«exception» MessageDeliveryException" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#6c8ebf;fontSize=11;" vertex="1" parent="appB">
+<mxGeometry x="20" y="570" width="360" height="40" as="geometry"/></mxCell>
+
+<!-- Domain -->
+<mxCell id="domB" value="domain (Java puro — sem Spring/Kafka/Telegram/LangChain4j)" style="swimlane;whiteSpace=wrap;html=1;startSize=26;fillColor=#fff2cc;strokeColor=#d6b656;swimlaneFillColor=#fffbea;" vertex="1" parent="A">
+<mxGeometry x="360" y="720" width="400" height="490" as="geometry"/></mxCell>
+<mxCell id="guide" value="«service» &lt;b&gt;ConsultationGuide&lt;/b&gt;&lt;br&gt;subtom → base · estação → paleta&lt;br&gt;contraste → intensidade · tipo de pele → cuidados" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#fff2cc;strokeColor=#d6b656;fontSize=11;" vertex="1" parent="domB">
+<mxGeometry x="20" y="40" width="360" height="65" as="geometry"/></mxCell>
+<mxCell id="mIn" value="«model» IncomingMessage" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#fff2cc;strokeColor=#d6b656;fontSize=11;" vertex="1" parent="domB">
+<mxGeometry x="20" y="125" width="175" height="45" as="geometry"/></mxCell>
+<mxCell id="mPic" value="«model» PictureMessage" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#fff2cc;strokeColor=#d6b656;fontSize=11;" vertex="1" parent="domB">
+<mxGeometry x="205" y="125" width="175" height="45" as="geometry"/></mxCell>
+<mxCell id="mFace" value="«enum» PhotoFaceStatus" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#fff2cc;strokeColor=#d6b656;fontSize=11;" vertex="1" parent="domB">
+<mxGeometry x="20" y="185" width="175" height="45" as="geometry"/></mxCell>
+<mxCell id="mStat" value="«enum» ProcessingStatus" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#fff2cc;strokeColor=#d6b656;fontSize=11;" vertex="1" parent="domB">
+<mxGeometry x="205" y="185" width="175" height="45" as="geometry"/></mxCell>
+<mxCell id="vPhoto" value="«valueobject» Photo" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#fff2cc;strokeColor=#d6b656;fontSize=11;" vertex="1" parent="domB">
+<mxGeometry x="20" y="250" width="175" height="45" as="geometry"/></mxCell>
+<mxCell id="vFile" value="«valueobject» FileContent&lt;br&gt;(bytes + MIME)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#fff2cc;strokeColor=#d6b656;fontSize=11;" vertex="1" parent="domB">
+<mxGeometry x="205" y="250" width="175" height="45" as="geometry"/></mxCell>
+<mxCell id="ev" value="«event» &lt;b&gt;MessageProcessedEvent&lt;/b&gt;&lt;br&gt;(record de domínio ≠ Avro)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#fff2cc;strokeColor=#d6b656;fontSize=11;" vertex="1" parent="domB">
+<mxGeometry x="20" y="315" width="360" height="50" as="geometry"/></mxCell>
+<mxCell id="consts" value="«constants» &lt;b&gt;BellaConstants&lt;/b&gt;&lt;br&gt;TELEGRAM_START · INITIAL_MESSAGE · AI_FAILURE_MESSAGE" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#fff2cc;strokeColor=#d6b656;fontSize=11;" vertex="1" parent="domB">
+<mxGeometry x="20" y="385" width="360" height="55" as="geometry"/></mxCell>
+
+<!-- Config -->
+<mxCell id="cfgB" value="infrastructure / config" style="swimlane;whiteSpace=wrap;html=1;startSize=26;fillColor=#f5f5f5;strokeColor=#666666;swimlaneFillColor=#fafafa;" vertex="1" parent="A">
+<mxGeometry x="20" y="720" width="300" height="490" as="geometry"/></mxCell>
+<mxCell id="lcCfg" value="&lt;b&gt;ai / LangChain4jConfig&lt;/b&gt;&lt;br&gt;bellaChatModel · bellaPictureModel (JSON)&lt;br&gt;bellaEmbeddingModel · ChromaEmbeddingStore (V2)&lt;br&gt;contentRetriever · bellaRetrievalAugmentor&lt;br&gt;bellaChatMemoryProvider&lt;br&gt;&lt;i&gt;Ollama/Chroma/Rag/RetrievalProperties&lt;/i&gt;" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#f5f5f5;strokeColor=#666666;fontSize=11;" vertex="1" parent="cfgB">
+<mxGeometry x="20" y="40" width="260" height="130" as="geometry"/></mxCell>
+<mxCell id="kCfg" value="&lt;b&gt;kafka / KafkaTopicConfig&lt;/b&gt; (NewTopic)&lt;br&gt;&lt;i&gt;KafkaTopicProperties&lt;/i&gt;" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#f5f5f5;strokeColor=#666666;fontSize=11;" vertex="1" parent="cfgB">
+<mxGeometry x="20" y="190" width="260" height="55" as="geometry"/></mxCell>
+<mxCell id="tCfg" value="&lt;b&gt;telegram / TelegramClientConfig&lt;/b&gt;&lt;br&gt;OkHttpTelegramClient · &lt;i&gt;TelegramBotProperties&lt;/i&gt;" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#f5f5f5;strokeColor=#666666;fontSize=11;" vertex="1" parent="cfgB">
+<mxGeometry x="20" y="265" width="260" height="55" as="geometry"/></mxCell>
+<mxCell id="yaml" value="&lt;b&gt;application.yaml&lt;/b&gt;&lt;br&gt;${ENV_VAR:default} · bellabot.*&lt;br&gt;TELEGRAM_BOT_TOKEN/USERNAME obrigatórios" style="shape=note;whiteSpace=wrap;html=1;size=14;fillColor=#ffffff;strokeColor=#666666;fontSize=11;" vertex="1" parent="cfgB">
+<mxGeometry x="20" y="340" width="260" height="65" as="geometry"/></mxCell>
+<mxCell id="logs" value="Logback → console + logs/bellabot.log&lt;br&gt;(10MB × 7 · MDC [updateId,chatId])" style="shape=note;whiteSpace=wrap;html=1;size=14;fillColor=#ffffff;strokeColor=#666666;fontSize=11;" vertex="1" parent="cfgB">
+<mxGeometry x="20" y="420" width="260" height="55" as="geometry"/></mxCell>
+
+<!-- Adapter OUT -->
+<mxCell id="outB" value="infrastructure / adapter / out" style="swimlane;whiteSpace=wrap;html=1;startSize=26;fillColor=#e1d5e7;strokeColor=#9673a6;swimlaneFillColor=#f8f3fa;" vertex="1" parent="A">
+<mxGeometry x="800" y="50" width="680" height="840" as="geometry"/></mxCell>
+<mxCell id="sender" value="telegram / &lt;b&gt;TelegramMessageSender&lt;/b&gt;&lt;br&gt;split 4096 (reabre tags) · fallback texto puro&lt;br&gt;SendChatAction(TYPING) a cada 4s" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#e1d5e7;strokeColor=#9673a6;fontSize=11;" vertex="1" parent="outB">
+<mxGeometry x="20" y="40" width="300" height="70" as="geometry"/></mxCell>
+<mxCell id="kpub" value="kafka / &lt;b&gt;KafkaEventPublisher&lt;/b&gt;&lt;br&gt;MessageProcessedEvent → Avro BellaUserMessage&lt;br&gt;toPlainText(reply) · chave = chatId" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#e1d5e7;strokeColor=#9673a6;fontSize=11;" vertex="1" parent="outB">
+<mxGeometry x="360" y="40" width="300" height="70" as="geometry"/></mxCell>
+
+<mxCell id="aiB" value="ai (LangChain4j 1.x)" style="swimlane;whiteSpace=wrap;html=1;startSize=26;fillColor=#e1d5e7;strokeColor=#9673a6;swimlaneFillColor=#ffffff;" vertex="1" parent="outB">
+<mxGeometry x="20" y="140" width="640" height="680" as="geometry"/></mxCell>
+<mxCell id="lc" value="&lt;b&gt;LangChain4jReplyAdapter&lt;/b&gt;&lt;br&gt;CLIENT_MESSAGE · consultationRequest&lt;br&gt;INVALID_PHOTO_REQUEST · ANALYSIS_LABELS&lt;br&gt;evictChatMemory a cada foto" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#e1d5e7;strokeColor=#9673a6;fontSize=11;" vertex="1" parent="aiB">
+<mxGeometry x="20" y="40" width="300" height="80" as="geometry"/></mxCell>
+<mxCell id="md" value="MarkdownToTelegramHtml" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#9673a6;fontSize=11;" vertex="1" parent="aiB">
+<mxGeometry x="360" y="40" width="260" height="35" as="geometry"/></mxCell>
+<mxCell id="mt" value="MedgemmaThinking.remove&lt;br&gt;(descarta &amp;lt;unused94&amp;gt;…&amp;lt;unused95&amp;gt;)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#9673a6;fontSize=11;" vertex="1" parent="aiB">
+<mxGeometry x="360" y="85" width="260" height="45" as="geometry"/></mxCell>
+<mxCell id="bella" value="assistant / «@AiService» &lt;b&gt;BellaBotAssistant&lt;/b&gt;&lt;br&gt;bellaChatModel · memória por chatId&lt;br&gt;bellaRetrievalAugmentor · ChatMemoryAccess" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#e1d5e7;strokeColor=#9673a6;fontSize=11;" vertex="1" parent="aiB">
+<mxGeometry x="20" y="170" width="300" height="70" as="geometry"/></mxCell>
+<mxCell id="pic" value="assistant / «@AiService»&lt;br&gt;&lt;b&gt;PictureDescriptionAssistant&lt;/b&gt;&lt;br&gt;bellaPictureModel (JSON) · sem memória&lt;br&gt;→ photo_status + 7 linhas rotuladas" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#e1d5e7;strokeColor=#9673a6;fontSize=11;" vertex="1" parent="aiB">
+<mxGeometry x="360" y="170" width="260" height="80" as="geometry"/></mxCell>
+<mxCell id="mem" value="memory / &lt;b&gt;ThinkingFreeChatMemoryStore&lt;/b&gt;&lt;br&gt;(RAM · sem raciocínio no histórico)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#9673a6;fontSize=11;" vertex="1" parent="aiB">
+<mxGeometry x="20" y="290" width="300" height="50" as="geometry"/></mxCell>
+<mxCell id="embA" value="&lt;b&gt;OllamaEmbeddingAdapter&lt;/b&gt;&lt;br&gt;recursive(600, 60) · lotes de 32 · Tika (PDF)&lt;br&gt;ingestão idempotente (apaga por source/store)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#e1d5e7;strokeColor=#9673a6;fontSize=11;" vertex="1" parent="aiB">
+<mxGeometry x="20" y="400" width="300" height="70" as="geometry"/></mxCell>
+<mxCell id="ingB" value="ingestion" style="swimlane;whiteSpace=wrap;html=1;startSize=24;fillColor=#e1d5e7;strokeColor=#9673a6;swimlaneFillColor=#faf7fb;" vertex="1" parent="aiB">
+<mxGeometry x="20" y="510" width="600" height="150" as="geometry"/></mxCell>
+<mxCell id="vtex" value="&lt;b&gt;VtexCatalogClient&lt;/b&gt;&lt;br&gt;50/página · até 2.500 itens" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#e1d5e7;strokeColor=#9673a6;fontSize=11;" vertex="1" parent="ingB">
+<mxGeometry x="20" y="40" width="260" height="50" as="geometry"/></mxCell>
+<mxCell id="crawler" value="&lt;b&gt;WebCrawler&lt;/b&gt;&lt;br&gt;BFS · robots.txt · Playwright (Chromium)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#e1d5e7;strokeColor=#9673a6;fontSize=11;" vertex="1" parent="ingB">
+<mxGeometry x="320" y="40" width="260" height="50" as="geometry"/></mxCell>
+<mxCell id="crawled" value="CrawledPage" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#9673a6;fontSize=11;" vertex="1" parent="ingB">
+<mxGeometry x="320" y="105" width="260" height="30" as="geometry"/></mxCell>
+
+<!-- Resources -->
+<mxCell id="resB" value="src/main/resources · src/main/avro" style="swimlane;whiteSpace=wrap;html=1;startSize=26;fillColor=#f5f5f5;strokeColor=#666666;swimlaneFillColor=#fafafa;" vertex="1" parent="A">
+<mxGeometry x="800" y="920" width="680" height="290" as="geometry"/></mxCell>
+<mxCell id="pr1" value="prompts/&lt;b&gt;bella-system.md&lt;/b&gt;&lt;br&gt;termina em “MENSAGEM DO CLIENTE” + ---" style="shape=note;whiteSpace=wrap;html=1;size=14;fillColor=#ffffff;strokeColor=#666666;fontSize=11;" vertex="1" parent="resB">
+<mxGeometry x="20" y="40" width="300" height="55" as="geometry"/></mxCell>
+<mxCell id="pr2" value="prompts/&lt;b&gt;picture-description-system.md&lt;/b&gt;&lt;br&gt;placeholders &amp;lt;...&amp;gt; · sem HEX" style="shape=note;whiteSpace=wrap;html=1;size=14;fillColor=#ffffff;strokeColor=#666666;fontSize=11;" vertex="1" parent="resB">
+<mxGeometry x="360" y="40" width="300" height="55" as="geometry"/></mxCell>
+<mxCell id="avsc" value="avro/&lt;b&gt;bella-user-message.avsc&lt;/b&gt;&lt;br&gt;→ BellaUserMessage (gerada no generate-sources)&lt;br&gt;eventId · username · phone · reply · status · receivedAt" style="shape=note;whiteSpace=wrap;html=1;size=14;fillColor=#ffffff;strokeColor=#666666;fontSize=11;" vertex="1" parent="resB">
+<mxGeometry x="20" y="115" width="300" height="70" as="geometry"/></mxCell>
+<mxCell id="rules" value="&lt;b&gt;Regras-chave&lt;/b&gt;&lt;br&gt;• Só o fluxo de &lt;b&gt;foto&lt;/b&gt; publica no Kafka (status=ANSWERED)&lt;br&gt;• Falha da IA → AI_FAILURE_MESSAGE, nada publicado&lt;br&gt;• Cada foto = consultoria nova (memória limpa)&lt;br&gt;• Análise → conselho no código (ConsultationGuide)&lt;br&gt;• Bot atende antes de a carga do RAG terminar (~2 min)" style="shape=note;whiteSpace=wrap;html=1;size=14;fillColor=#fff2cc;strokeColor=#d6b656;fontSize=11;align=left;spacingLeft=6;" vertex="1" parent="resB">
+<mxGeometry x="340" y="115" width="320" height="160" as="geometry"/></mxCell>
+
+<!-- Externos à direita -->
+<mxCell id="ollB" value="Ollama :11434 (host · GPU RTX 3050 6GB · fila única)" style="swimlane;whiteSpace=wrap;html=1;startSize=30;fillColor=#f8cecc;strokeColor=#b85450;swimlaneFillColor=#fdf3f3;" vertex="1" parent="1">
+<mxGeometry x="1780" y="60" width="340" height="210" as="geometry"/></mxCell>
+<mxCell id="medgemma" value="&lt;b&gt;medgemma1.5:4b&lt;/b&gt; (chat + visão)&lt;br&gt;num-ctx 8192 · num-predict 3072/2048&lt;br&gt;repeat-penalty 1.1 · timeout 300s · retries 0" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#f8cecc;strokeColor=#b85450;fontSize=11;" vertex="1" parent="ollB">
+<mxGeometry x="20" y="45" width="300" height="70" as="geometry"/></mxCell>
+<mxCell id="nomic" value="&lt;b&gt;nomic-embed-text&lt;/b&gt; (embeddings)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#f8cecc;strokeColor=#b85450;fontSize=11;" vertex="1" parent="ollB">
+<mxGeometry x="20" y="140" width="300" height="45" as="geometry"/></mxCell>
+
+<mxCell id="dkB" value="docker compose (bellabot-net)" style="swimlane;whiteSpace=wrap;html=1;startSize=30;fillColor=#ffe6cc;strokeColor=#d79b00;swimlaneFillColor=#fffaf3;" vertex="1" parent="1">
+<mxGeometry x="1780" y="320" width="340" height="420" as="geometry"/></mxCell>
+<mxCell id="kafka" value="&lt;b&gt;Kafka :9092&lt;/b&gt; (KRaft, cp-kafka 7.9)&lt;br&gt;tópico &lt;i&gt;bella.user-message.processed.v1&lt;/i&gt;&lt;br&gt;chave = chatId · 3 partições" style="shape=mxgraph.flowchart.direct_data;whiteSpace=wrap;html=1;fillColor=#ffe6cc;strokeColor=#d79b00;fontSize=11;" vertex="1" parent="dkB">
+<mxGeometry x="20" y="45" width="300" height="90" as="geometry"/></mxCell>
+<mxCell id="sr" value="&lt;b&gt;Schema Registry :8081&lt;/b&gt;&lt;br&gt;subject &amp;lt;tópico&amp;gt;-value · BACKWARD" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffe6cc;strokeColor=#d79b00;fontSize=11;" vertex="1" parent="dkB">
+<mxGeometry x="20" y="160" width="300" height="55" as="geometry"/></mxCell>
+<mxCell id="chroma" value="&lt;b&gt;ChromaDB :8000&lt;/b&gt;&lt;br&gt;API V2 · coleção do RAG&lt;br&gt;metadados type/store/source" style="shape=cylinder3;whiteSpace=wrap;html=1;boundedLbl=1;size=12;fillColor=#ffe6cc;strokeColor=#d79b00;fontSize=11;" vertex="1" parent="dkB">
+<mxGeometry x="40" y="245" width="260" height="150" as="geometry"/></mxCell>
+
+<mxCell id="ragB" value="Fontes do RAG" style="swimlane;whiteSpace=wrap;html=1;startSize=30;fillColor=#f8cecc;strokeColor=#b85450;swimlaneFillColor=#fdf3f3;" vertex="1" parent="1">
+<mxGeometry x="1780" y="790" width="340" height="250" as="geometry"/></mxCell>
+<mxCell id="vtexStore" value="Lojas VTEX&lt;br&gt;/api/catalog_system/pub/products/search" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#f8cecc;strokeColor=#b85450;fontSize=11;" vertex="1" parent="ragB">
+<mxGeometry x="20" y="45" width="300" height="50" as="geometry"/></mxCell>
+<mxCell id="sites" value="Sites (bellabot.ai.rag.site.urls)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#f8cecc;strokeColor=#b85450;fontSize=11;" vertex="1" parent="ragB">
+<mxGeometry x="20" y="115" width="300" height="45" as="geometry"/></mxCell>
+<mxCell id="pdf" value="data/rag/outubro2026.pdf&lt;br&gt;(BELLABOT_RAG_PDF_PATH)" style="shape=note;whiteSpace=wrap;html=1;size=14;fillColor=#f8cecc;strokeColor=#b85450;fontSize=11;" vertex="1" parent="ragB">
+<mxGeometry x="20" y="180" width="300" height="50" as="geometry"/></mxCell>
+
+<mxCell id="down" value="Consumidores downstream&lt;br&gt;(futuros)" style="rounded=1;whiteSpace=wrap;html=1;dashed=1;fillColor=#ffffff;strokeColor=#d79b00;fontSize=11;fontColor=#666666;" vertex="1" parent="1">
+<mxGeometry x="2180" y="370" width="170" height="60" as="geometry"/></mxCell>
+
+<!-- Legenda -->
+<mxCell id="legB" value="Legenda" style="swimlane;whiteSpace=wrap;html=1;startSize=26;fillColor=#ffffff;strokeColor=#999999;" vertex="1" parent="1">
+<mxGeometry x="1780" y="1080" width="570" height="170" as="geometry"/></mxCell>
+<mxCell id="lg1" value="domain" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#fff2cc;strokeColor=#d6b656;fontSize=10;" vertex="1" parent="legB"><mxGeometry x="15" y="40" width="85" height="28" as="geometry"/></mxCell>
+<mxCell id="lg2" value="application" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#dae8fc;strokeColor=#6c8ebf;fontSize=10;" vertex="1" parent="legB"><mxGeometry x="110" y="40" width="85" height="28" as="geometry"/></mxCell>
+<mxCell id="lg3" value="adapter in" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#d5e8d4;strokeColor=#82b366;fontSize=10;" vertex="1" parent="legB"><mxGeometry x="205" y="40" width="85" height="28" as="geometry"/></mxCell>
+<mxCell id="lg4" value="adapter out" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#e1d5e7;strokeColor=#9673a6;fontSize=10;" vertex="1" parent="legB"><mxGeometry x="300" y="40" width="85" height="28" as="geometry"/></mxCell>
+<mxCell id="lg5" value="config/recursos" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#f5f5f5;strokeColor=#666666;fontSize=10;" vertex="1" parent="legB"><mxGeometry x="395" y="40" width="80" height="28" as="geometry"/></mxCell>
+<mxCell id="lg6" value="externo" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#f8cecc;strokeColor=#b85450;fontSize=10;" vertex="1" parent="legB"><mxGeometry x="485" y="40" width="70" height="28" as="geometry"/></mxCell>
+<mxCell id="lgt" value="── ▶ chamada / fluxo de dados&lt;br&gt;- - ▷ implementa a port (adapter → port)&lt;br&gt;··· ▶ usa recurso / configuração&lt;br&gt;Dependências apontam para dentro: infrastructure → application → domain" style="text;html=1;align=left;verticalAlign=top;fontSize=11;" vertex="1" parent="legB"><mxGeometry x="15" y="80" width="540" height="80" as="geometry"/></mxCell>
+
+<!-- Arestas -->
+<mxCell id="e1" value="mensagens · fotos" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;fontSize=10;startArrow=classic;" edge="1" parent="1" source="cliente" target="tgApi"><mxGeometry relative="1" as="geometry"/></mxCell>
+<mxCell id="e2" value="long polling (getUpdates)" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;fontSize=10;" edge="1" parent="1" source="tgApi" target="tgBot"><mxGeometry relative="1" as="geometry"/></mxCell>
+<mxCell id="e3" value="reply(IncomingMessage)" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;fontSize=10;" edge="1" parent="1" source="tgBot" target="ucIn"><mxGeometry relative="1" as="geometry"/></mxCell>
+<mxCell id="e4" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;dashed=1;endArrow=block;endFill=0;" edge="1" parent="1" source="ucSvc" target="ucIn"><mxGeometry relative="1" as="geometry"/></mxCell>
+<mxCell id="e5" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;" edge="1" parent="1" source="ucSvc" target="pAi"><mxGeometry relative="1" as="geometry"/></mxCell>
+<mxCell id="e6" value="orientações" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;fontSize=10;" edge="1" parent="1" source="ucSvc" target="guide"><mxGeometry relative="1" as="geometry"/></mxCell>
+<mxCell id="e7" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;dashed=1;endArrow=block;endFill=0;" edge="1" parent="1" source="lc" target="pAi"><mxGeometry relative="1" as="geometry"/></mxCell>
+<mxCell id="e8" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;dashed=1;endArrow=block;endFill=0;" edge="1" parent="1" source="sender" target="pSend"><mxGeometry relative="1" as="geometry"/></mxCell>
+<mxCell id="e9" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;dashed=1;endArrow=block;endFill=0;" edge="1" parent="1" source="kpub" target="pPub"><mxGeometry relative="1" as="geometry"/></mxCell>
+<mxCell id="e10" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;dashed=1;endArrow=block;endFill=0;" edge="1" parent="1" source="embA" target="pEmb"><mxGeometry relative="1" as="geometry"/></mxCell>
+<mxCell id="e11" value="carga do RAG na subida" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;fontSize=10;" edge="1" parent="1" source="embInit" target="pEmb"><mxGeometry relative="1" as="geometry"/></mxCell>
+<mxCell id="e12" value="sendMessage (HTML) · sendChatAction · getFile/download" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;fontSize=10;" edge="1" parent="1" source="sender" target="tgApi"><mxGeometry relative="1" as="geometry"/></mxCell>
+<mxCell id="e13" value="texto / consultoria" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;fontSize=10;" edge="1" parent="1" source="lc" target="bella"><mxGeometry relative="1" as="geometry"/></mxCell>
+<mxCell id="e14" value="foto (ImageContent)" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;fontSize=10;" edge="1" parent="1" source="lc" target="pic"><mxGeometry relative="1" as="geometry"/></mxCell>
+<mxCell id="e15" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;" edge="1" parent="1" source="lc" target="md"><mxGeometry relative="1" as="geometry"/></mxCell>
+<mxCell id="e16" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;" edge="1" parent="1" source="lc" target="mt"><mxGeometry relative="1" as="geometry"/></mxCell>
+<mxCell id="e17" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;" edge="1" parent="1" source="bella" target="mem"><mxGeometry relative="1" as="geometry"/></mxCell>
+<mxCell id="e18" value="/api/chat" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;fontSize=10;" edge="1" parent="1" source="bella" target="medgemma"><mxGeometry relative="1" as="geometry"/></mxCell>
+<mxCell id="e19" value="/api/chat (JSON)" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;fontSize=10;" edge="1" parent="1" source="pic" target="medgemma"><mxGeometry relative="1" as="geometry"/></mxCell>
+<mxCell id="e20" value="retrieval top 5 · score ≥ 0.83" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;fontSize=10;" edge="1" parent="1" source="bella" target="chroma"><mxGeometry relative="1" as="geometry"/></mxCell>
+<mxCell id="e21" value="Avro · acks=all · idempotente · lz4" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;fontSize=10;" edge="1" parent="1" source="kpub" target="kafka"><mxGeometry relative="1" as="geometry"/></mxCell>
+<mxCell id="e22" value="schema" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;fontSize=10;" edge="1" parent="1" source="kpub" target="sr"><mxGeometry relative="1" as="geometry"/></mxCell>
+<mxCell id="e23" value="embeddings" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;fontSize=10;" edge="1" parent="1" source="embA" target="nomic"><mxGeometry relative="1" as="geometry"/></mxCell>
+<mxCell id="e24" value="grava segmentos" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;fontSize=10;" edge="1" parent="1" source="embA" target="chroma"><mxGeometry relative="1" as="geometry"/></mxCell>
+<mxCell id="e25" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;" edge="1" parent="1" source="embA" target="vtex"><mxGeometry relative="1" as="geometry"/></mxCell>
+<mxCell id="e26" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;" edge="1" parent="1" source="embA" target="crawler"><mxGeometry relative="1" as="geometry"/></mxCell>
+<mxCell id="e27" value="HTTP" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;fontSize=10;" edge="1" parent="1" source="vtex" target="vtexStore"><mxGeometry relative="1" as="geometry"/></mxCell>
+<mxCell id="e28" value="HTTP / Playwright" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;fontSize=10;" edge="1" parent="1" source="crawler" target="sites"><mxGeometry relative="1" as="geometry"/></mxCell>
+<mxCell id="e29" value="Tika" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;fontSize=10;" edge="1" parent="1" source="embA" target="pdf"><mxGeometry relative="1" as="geometry"/></mxCell>
+<mxCell id="e30" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;" edge="1" parent="1" source="crawler" target="crawled"><mxGeometry relative="1" as="geometry"/></mxCell>
+<mxCell id="e31" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;dashed=1;strokeColor=#d79b00;" edge="1" parent="1" source="kafka" target="down"><mxGeometry relative="1" as="geometry"/></mxCell>
+<mxCell id="e32" value="system prompt" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;dashed=1;dashPattern=1 3;fontSize=10;strokeColor=#666666;" edge="1" parent="1" source="pr1" target="bella"><mxGeometry relative="1" as="geometry"/></mxCell>
+<mxCell id="e33" value="system prompt" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;dashed=1;dashPattern=1 3;fontSize=10;strokeColor=#666666;" edge="1" parent="1" source="pr2" target="pic"><mxGeometry relative="1" as="geometry"/></mxCell>
+<mxCell id="e34" value="gera classe" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;dashed=1;dashPattern=1 3;fontSize=10;strokeColor=#666666;" edge="1" parent="1" source="avsc" target="kpub"><mxGeometry relative="1" as="geometry"/></mxCell>
+<mxCell id="e35" value="beans" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;dashed=1;dashPattern=1 3;fontSize=10;strokeColor=#666666;" edge="1" parent="1" source="lcCfg" target="aiB"><mxGeometry relative="1" as="geometry"/></mxCell>
+<mxCell id="e36" value="TelegramClient" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;dashed=1;dashPattern=1 3;fontSize=10;strokeColor=#666666;" edge="1" parent="1" source="tCfg" target="tgBot"><mxGeometry relative="1" as="geometry"/></mxCell>
+<mxCell id="e37" value="NewTopic" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;dashed=1;dashPattern=1 3;fontSize=10;strokeColor=#666666;" edge="1" parent="1" source="kCfg" target="kafka"><mxGeometry relative="1" as="geometry"/></mxCell>
+</root>
+</mxGraphModel>
+</diagram>
+</mxfile>

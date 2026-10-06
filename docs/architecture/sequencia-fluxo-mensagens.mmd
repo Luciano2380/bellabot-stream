@@ -1,0 +1,86 @@
+sequenceDiagram
+    autonumber
+    actor C as Cliente
+    participant TG as Telegram Bot API
+    participant BOT as BellaBotTelegramBot
+    participant UC as ReplyToMessageService
+    participant SND as TelegramMessageSender
+    participant AI as LangChain4jReplyAdapter
+    participant PIC as PictureDescriptionAssistant
+    participant GD as ConsultationGuide
+    participant BEL as BellaBotAssistant
+    participant CH as ChromaDB
+    participant OL as Ollama medgemma
+    participant KP as KafkaEventPublisher
+    participant K as Kafka + Schema Registry
+
+    C->>TG: envia texto ou foto
+    BOT->>TG: getUpdates (long polling)
+    TG-->>BOT: Update
+    Note over BOT: virtual thread por update, MDC [updateId,chatId], PhotoSize vira Photo
+    BOT->>UC: reply(IncomingMessage)
+
+    alt texto /start
+        UC->>SND: send(INITIAL_MESSAGE)
+        SND->>TG: sendMessage
+    else texto livre
+        UC->>SND: startTyping(chatId)
+        loop a cada 4s até fechar
+            SND-)TG: sendChatAction(TYPING)
+        end
+        UC->>AI: generate(chatId, texto)
+        AI->>BEL: chat com Mensagem do cliente
+        BEL->>CH: retrieval top 5, score min 0.83
+        CH-->>BEL: trechos [MATERIAL DE CONSULTA]
+        BEL->>OL: /api/chat (memória do chatId + material)
+        OL-->>BEL: raciocínio unused94..95 + resposta
+        Note over BEL: ThinkingFreeChatMemoryStore guarda sem raciocínio
+        BEL-->>AI: resposta
+        AI->>AI: MedgemmaThinking.remove + MarkdownToTelegramHtml
+        AI-->>UC: reply HTML (vazio ou erro vira AI_FAILURE_MESSAGE)
+        UC->>SND: close typing e send(reply)
+        SND->>TG: sendMessage HTML (split 4096, fallback texto puro)
+        Note over UC: fluxo de texto NÃO publica no Kafka
+    else foto
+        UC->>SND: startTyping(chatId)
+        UC->>SND: downloadFile(largestPhoto.fileId)
+        SND->>TG: getFile + download
+        SND-->>UC: FileContent (bytes + MIME)
+        UC->>AI: analyzePhoto(chatId, FileContent)
+        AI->>PIC: ImageContent (sem memória)
+        PIC->>OL: /api/chat modo JSON
+        OL-->>PIC: photo_status + message (7 linhas rotuladas)
+        PIC-->>AI: JSON
+        AI-->>UC: PictureMessage (WARN se faltar rótulo)
+        alt photo_status diferente de CLEAR_SINGLE_FACE
+            UC->>AI: generateInvalidPhotoReply(chatId)
+            AI->>BEL: INVALID_PHOTO_REQUEST
+            BEL->>OL: /api/chat
+            OL-->>BEL: pedido de nova foto
+            BEL-->>AI: resposta
+        else foto válida
+            UC->>GD: forAnalysis(análise)
+            GD-->>UC: orientações (base, paleta, intensidade, cuidados)
+            UC->>AI: generateConsultation(chatId, análise, orientações)
+            AI->>BEL: evictChatMemory(chatId)
+            AI->>BEL: consultationRequest (análise + orientações)
+            BEL->>CH: retrieval
+            CH-->>BEL: produtos e material
+            BEL->>OL: /api/chat
+            OL-->>BEL: consultoria
+            BEL-->>AI: resposta (fica na memória)
+        end
+        AI-->>UC: reply HTML
+        alt falha ou resposta vazia
+            UC->>SND: send(AI_FAILURE_MESSAGE)
+            SND->>TG: sendMessage
+        else sucesso
+            UC->>SND: send(reply)
+            SND->>TG: sendMessage HTML
+            UC->>KP: publish(MessageProcessedEvent)
+            KP->>KP: toPlainText + Avro BellaUserMessage
+            KP->>K: send key=chatId, acks=all, lz4
+            Note over UC,KP: exceção na publicação só gera log, nunca afeta o cliente
+        end
+    end
+    TG-->>C: resposta da Bella

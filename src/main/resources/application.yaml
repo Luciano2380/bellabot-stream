@@ -1,0 +1,149 @@
+spring:
+  application:
+    name: bellabot-stream
+  threads:
+    virtual:
+      enabled: true
+
+  # ---------------------------------------------------------------------------
+  # Kafka + Avro (Confluent Schema Registry)
+  # ---------------------------------------------------------------------------
+  kafka:
+    bootstrap-servers: ${KAFKA_BOOTSTRAP_SERVERS:localhost:9092}
+    client-id: ${spring.application.name}
+    properties:
+      # Propriedades comuns a producers e consumers (repassadas ao serializer/deserializer Avro)
+      schema.registry.url: ${SCHEMA_REGISTRY_URL:http://localhost:8081}
+      auto.register.schemas: ${SCHEMA_REGISTRY_AUTO_REGISTER:true}
+      use.latest.version: false
+      value.subject.name.strategy: io.confluent.kafka.serializers.subject.TopicNameStrategy
+    producer:
+      key-serializer: org.apache.kafka.common.serialization.StringSerializer
+      value-serializer: io.confluent.kafka.serializers.KafkaAvroSerializer
+      acks: all
+      compression-type: lz4
+      properties:
+        enable.idempotence: true
+        max.in.flight.requests.per.connection: 5
+        linger.ms: 10
+        delivery.timeout.ms: 120000
+    consumer:
+      group-id: ${KAFKA_CONSUMER_GROUP:${spring.application.name}}
+      auto-offset-reset: earliest
+      enable-auto-commit: false
+      key-deserializer: org.springframework.kafka.support.serializer.ErrorHandlingDeserializer
+      value-deserializer: org.springframework.kafka.support.serializer.ErrorHandlingDeserializer
+      properties:
+        spring.deserializer.key.delegate.class: org.apache.kafka.common.serialization.StringDeserializer
+        spring.deserializer.value.delegate.class: io.confluent.kafka.serializers.KafkaAvroDeserializer
+        specific.avro.reader: true
+        isolation.level: read_committed
+    listener:
+      ack-mode: record
+      missing-topics-fatal: false
+    admin:
+      fail-fast: false
+
+# -----------------------------------------------------------------------------
+# Telegram Bot API (telegrambots-springboot-longpolling-starter 10.x; token/username
+# lidos pelo bean SpringLongPollingBot em infrastructure.config.telegram)
+# -----------------------------------------------------------------------------
+telegram:
+  bot:
+    token: ${TELEGRAM_BOT_TOKEN}
+    username: ${TELEGRAM_BOT_USERNAME}
+    api-url: ${TELEGRAM_API_URL:https://api.telegram.org}
+    long-polling:
+      timeout: 50s
+      allowed-updates: message,callback_query
+
+# -----------------------------------------------------------------------------
+# Propriedades da aplicação
+# -----------------------------------------------------------------------------
+bellabot:
+  ai:
+    # Ollama (langchain4j-ollama sem starter: beans ChatModel/EmbeddingModel declarados
+    # em infrastructure.config.ai.LangChain4jConfig a partir destas propriedades)
+    ollama:
+      base-url: ${OLLAMA_BASE_URL:http://localhost:11434}
+      timeout: ${OLLAMA_TIMEOUT:300s}
+      # Retries das chamadas de embedding (ingestão do RAG)
+      max-retries: ${OLLAMA_MAX_RETRIES:2}
+      log-requests: ${OLLAMA_LOG_REQUESTS:false}
+      log-responses: ${OLLAMA_LOG_RESPONSES:false}
+      chat:
+        model-name: ${OLLAMA_CHAT_MODEL:medgemma1.5:4b}
+        temperature: ${OLLAMA_TEMPERATURE:0.3}
+        num-ctx: ${OLLAMA_NUM_CTX:8192}
+        # Teto de tokens gerados: sem ele o medgemma pode entrar em loop até estourar o timeout.
+        # O medgemma sempre raciocina (<unused94>) antes de responder: raciocínio + resposta somam ~2.300 tokens,
+        # e com 1024 o raciocínio era cortado e a resposta ficava vazia.
+        num-predict: ${OLLAMA_NUM_PREDICT:3072}
+        repeat-penalty: ${OLLAMA_REPEAT_PENALTY:1.1}
+        # Sem retry no chat: repetir uma chamada que estourou o timeout só multiplica a espera do usuário
+        max-retries: ${OLLAMA_CHAT_MAX_RETRIES:0}
+      # Análise de foto (bellaPictureModel): mesmo modelo do chat, em modo JSON e com teto de tokens maior
+      picture:
+        num-predict: ${OLLAMA_PICTURE_NUM_PREDICT:2048}
+      # Embeddings usados para indexar e consultar o ChromaDB (RAG)
+      embedding:
+        model-name: ${OLLAMA_EMBEDDING_MODEL:nomic-embed-text}
+    chat-memory:
+      max-messages: ${BELLABOT_CHAT_MEMORY_MAX_MESSAGES:20}
+    # ChromaDB (langchain4j-chroma não tem starter: bindado via @ConfigurationProperties
+    # em infrastructure.config.ai e repassado ao ChromaEmbeddingStore.builder())
+    vector-store:
+      chroma:
+        base-url: ${CHROMA_BASE_URL:http://localhost:8000}
+        api-version: V2              # Chroma 1.x expõe apenas a API v2
+        tenant-name: ${CHROMA_TENANT:default_tenant}
+        database-name: ${CHROMA_DATABASE:default_database}
+        collection-name: ${CHROMA_COLLECTION:bellabot}
+        timeout: 30s
+        log-requests: false
+        log-responses: false
+    # Busca no RAG (ContentRetriever do BellaBotAssistant). O nomic-embed-text sem prefixos comprime os scores:
+    # saudações ("bom dia", "obrigada") ficam em 0,75–0,82 e perguntas reais em 0,84–0,90. Com 0,6, toda
+    # saudação recebia 5 trechos irrelevantes e o modelo raciocinava até estourar o num-predict.
+    retrieval:
+      max-results: ${BELLABOT_RAG_MAX_RESULTS:5}
+      min-score: ${BELLABOT_RAG_MIN_SCORE:0.83}
+    # Carga inicial do RAG (OllamaEmbeddingInitializer): fontes indexadas no ChromaDB na subida
+    rag:
+      pdf:
+        # Fora do classpath para não inflar o jar; caminho relativo ao diretório de execução
+        path: ${BELLABOT_RAG_PDF_PATH:file:data/rag/outubro2026.pdf}
+      site:
+        # Lista separada por vírgula; cada site é percorrido com os sublinks abaixo do caminho informado
+        urls: ${BELLABOT_RAG_SITE_URLS:https://www.sbd.org.br/cuidados/}
+        max-depth: ${BELLABOT_RAG_SITE_MAX_DEPTH:2}
+        max-pages: ${BELLABOT_RAG_SITE_MAX_PAGES:50}
+        request-delay: ${BELLABOT_RAG_SITE_REQUEST_DELAY:1s}
+      catalog:
+        # Lojas VTEX (lista separada por vírgula): produtos lidos pela API pública de catálogo
+        store-urls: ${BELLABOT_RAG_CATALOG_STORE_URLS:https://loja.marykay.com.br}
+  kafka:
+    topics:
+      partitions: ${BELLABOT_KAFKA_TOPIC_PARTITIONS:3}
+      replication-factor: ${BELLABOT_KAFKA_TOPIC_REPLICATION:1}
+      # Convenção: <domínio>.<entidade>.<evento>.v<versão>; mudança incompatível de schema vai para um novo tópico (.v2)
+      user-message: ${BELLABOT_TOPIC_USER_MESSAGE:bella.user-message.processed.v1}
+
+logging:
+  # Além do console, grava em arquivo (relativo ao diretório de execução) para acompanhar os erros fora da IDE
+  file:
+    name: ${LOG_FILE:logs/bellabot.log}
+  logback:
+    rollingpolicy:
+      max-file-size: 10MB
+      max-history: 7
+  pattern:
+    # updateId/chatId vêm do MDC preenchido no BellaBotTelegramBot
+    correlation: "[%X{updateId:-},%X{chatId:-}] "
+  level:
+    root: INFO
+    com.lpopas.bellabotstream: DEBUG
+    dev.langchain4j: INFO
+    org.apache.kafka: WARN
+    io.confluent: WARN
+    org.telegram: INFO

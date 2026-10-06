@@ -1,0 +1,14 @@
+{
+  "type": "record",
+  "name": "BellaUserMessage",
+  "namespace": "com.lpopas.bellabotstream.avro",
+  "doc": "Mensagem de usuário recebida pelo Telegram, processada pela IA e respondida pela BellaBot.",
+  "fields": [
+    { "name": "eventId", "type": "string" },
+    { "name": "username", "type": ["null", "string"], "default": null },
+    { "name": "phone", "type": "string" },
+    { "name": "reply", "type": ["null", "string"], "default": null },
+    { "name": "status", "type": "string" },
+    { "name": "receivedAt", "type": { "type": "long", "logicalType": "timestamp-millis" } }
+  ]
+}
